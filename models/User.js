@@ -1,0 +1,62 @@
+const mongoose = require("mongoose")
+const bcrypt = require("bcryptjs")
+const jwt = require("jsonwebtoken")
+const { promisify } = require("node:util")
+
+const UserSchema = new mongoose.Schema({
+    fullName: {
+        type: String,
+        required: [true, "Please provide full name"],
+        minlength: [3, "must be at least 3 characters"],
+        maxlength: [150, "cannot be more than 150 characters"]
+    },
+    email: {
+        type: String,
+        required: [true, "Please provide email"],
+        match: [
+            /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,
+        ],
+        index: { unique: true }
+    },
+    password: {
+        type: String,
+        required: [true, "Please provide password"],
+        minlength: [8, "must be at least 8 characters"],
+        match: [
+            /^(?=.*\d)(?=.*[!@#$%^&*])(?=.*[a-z])(?=.*[A-Z]).{8,}$/,
+            "should be at least a symbol, upper and lower case letters and a number"
+        ]
+    },
+    role: {
+        type: String,
+        enum: ["user", "admin"]
+    },
+    status: {
+        type: String,
+        enum: ["active", "inactive"]
+    }
+})
+
+UserSchema.pre("save", async function () {
+    const salt = await bcrypt.genSalt(10)
+    this.password = await bcrypt.hash(this.password, salt)
+})
+
+UserSchema.methods.createJWT = async function () {
+    const promisifiedSign = promisify(jwt.sign)
+    const token = await promisifiedSign(
+        { userId: this._id, name: this.name },
+        process.env.JWT_SECRET,
+        {
+            expiresIn: process.env.JWT_LIFETIME || "1h"
+        }
+    )
+    return token
+}
+
+UserSchema.methods.comparePassword = async function (candidatePassword) {
+    const isMatch = await bcrypt.compare(candidatePassword, this.password)
+    return isMatch
+}
+
+module.exports = mongoose.model("User", UserSchema)
