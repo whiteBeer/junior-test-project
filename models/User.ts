@@ -37,6 +37,8 @@ const UserSchema = new mongoose.Schema<IUser>({
         type: String,
         enum: ["active", "inactive"]
     }
+}, {
+    versionKey: false
 });
 
 UserSchema.pre("save", async function () {

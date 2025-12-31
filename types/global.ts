@@ -14,3 +14,7 @@ export interface IJwtPayload {
     userId: string;
     name: string;
 }
+
+export interface IErrorMongoose extends Error {
+    code: number;
+}

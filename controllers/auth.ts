@@ -1,7 +1,13 @@
+import { IUser, IErrorMongoose } from "../types/global";
 import { Request, Response } from "express";
 import User from "../models/User";
 import { StatusCodes } from "http-status-codes";
 import { BadRequestError, UnauthenticatedError } from "../errors";
+
+const withoutPassword = (user:IUser) => {
+    const {password, ...userWithoutPassword} = user.toObject();
+    return userWithoutPassword;
+};
 
 const register = async (req: Request, res: Response) => {
     const { fullName, email, password } = req.body;
@@ -15,12 +21,10 @@ const register = async (req: Request, res: Response) => {
             ...{role: "user", status: "active"}
         });
         const token = await user.createJWT();
-        res.status(StatusCodes.CREATED).json({
-            user: { name: user.fullName, status: user.status, role: user.role },
-            token
-        });
-    } catch (err: any) {
-        if (err.code === 11000) {
+        res.status(StatusCodes.CREATED).json({ user: withoutPassword(user), token });
+    } catch (err:unknown) {
+        const knownError = err as IErrorMongoose;
+        if (knownError.code === 11000) {
             throw new BadRequestError("Email already exists");
         } else {
             throw err;
@@ -48,9 +52,7 @@ const login = async (req: Request, res: Response) => {
     }
 
     const token = await user.createJWT();
-    res.status(StatusCodes.OK).json({ user: {
-        fullName: user.fullName, status: user.status, role: user.role
-    }, token });
+    res.status(StatusCodes.OK).json({ user: withoutPassword(user), token });
 };
 
 export {
