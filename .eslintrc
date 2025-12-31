@@ -1,6 +1,11 @@
 {
   "root": true,
-  "extends": "eslint:recommended",
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
   "env": {
     "browser": false,
     "node": true,
@@ -13,7 +18,7 @@
   "rules": {
     "indent": ["error", 4],
     "quotes": ["error", "double"],
-    "semi": ["error", "never"],
+    "semi": ["error", "always"],
     "comma-dangle": ["error", "never"]
   }
 }

@@ -1,9 +1,10 @@
-const mongoose = require("mongoose")
-const bcrypt = require("bcryptjs")
-const jwt = require("jsonwebtoken")
-const { promisify } = require("node:util")
+import { IUser } from "../types/global";
+import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { promisify } from "node:util";
 
-const UserSchema = new mongoose.Schema({
+const UserSchema = new mongoose.Schema<IUser>({
     fullName: {
         type: String,
         required: [true, "Please provide full name"],
@@ -15,6 +16,7 @@ const UserSchema = new mongoose.Schema({
         required: [true, "Please provide email"],
         match: [
             /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,
+            "should be an email address"
         ],
         index: { unique: true }
     },
@@ -35,28 +37,30 @@ const UserSchema = new mongoose.Schema({
         type: String,
         enum: ["active", "inactive"]
     }
-})
+});
 
 UserSchema.pre("save", async function () {
-    const salt = await bcrypt.genSalt(10)
-    this.password = await bcrypt.hash(this.password, salt)
-})
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+});
 
 UserSchema.methods.createJWT = async function () {
-    const promisifiedSign = promisify(jwt.sign)
+    const promisifiedSign = promisify(jwt.sign);
     const token = await promisifiedSign(
-        { userId: this._id, name: this.name },
-        process.env.JWT_SECRET,
+        { userId: this._id, name: this.fullName },
+        // @ts-expect-error some types mismatching after promisify
+        process.env.JWT_SECRET as string,
         {
             expiresIn: process.env.JWT_LIFETIME || "1h"
         }
-    )
-    return token
-}
+    );
+    return token;
+};
 
-UserSchema.methods.comparePassword = async function (candidatePassword) {
-    const isMatch = await bcrypt.compare(candidatePassword, this.password)
-    return isMatch
-}
+UserSchema.methods.comparePassword = async function (candidatePassword: string) {
+    const isMatch = await bcrypt.compare(candidatePassword, this.password);
+    return isMatch;
+};
 
-module.exports = mongoose.model("User", UserSchema)
+const User = mongoose.model<IUser>("User", UserSchema);
+export default User;
