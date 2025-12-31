@@ -31,10 +31,12 @@ const UserSchema = new mongoose.Schema<IUser>({
     },
     role: {
         type: String,
+        required: true,
         enum: ["user", "admin"]
     },
     status: {
         type: String,
+        required: true,
         enum: ["active", "inactive"]
     }
 }, { versionKey: false });
