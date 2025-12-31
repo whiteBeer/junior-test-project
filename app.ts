@@ -1,10 +1,18 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+import { Server } from "http";
+import mongoose from "mongoose";
 import helmet from "helmet";
 import cors from "cors";
 import { xss } from "express-xss-sanitizer";
 import rateLimiter from "express-rate-limit";
+
+import express, { Request, Response } from "express";
+import notFoundMiddleware from "./middleware/not-found";
+import errorHandlerMiddleware from "./middleware/error-handler";
+import authenticationUser from "./middleware/authentication";
+import connectDB from "./db/connect";
 
 import authRouter from "./routes/auth";
 import usersRouter from "./routes/users";
@@ -13,14 +21,6 @@ import usersRouter from "./routes/users";
 import swaggerUI from "swagger-ui-express";
 import YAML from "yamljs";
 const swaggerDocument = YAML.load("./swagger.yaml");
-
-import express, { Request, Response } from "express";
-
-import notFoundMiddleware from "./middleware/not-found";
-import errorHandlerMiddleware from "./middleware/error-handler";
-import authenticationUser from "./middleware/authentication";
-
-import connectDB from "./db/connect";
 
 const app = express();
 
@@ -44,6 +44,37 @@ app.use(errorHandlerMiddleware);
 
 const port = process.env.PORT || 3000;
 
+const handleShutdown = (server: Server) => {
+    let isShuttingDown = false;
+    async function shutdown() {
+        if (isShuttingDown) {
+            return;
+        }
+        isShuttingDown = true;
+        console.log("Shutting down gracefully...");
+        server.close();
+        try {
+            console.log("Disconnecting mongoose");
+            await mongoose.disconnect();
+            console.log("Mongoose disconnected");
+        } catch (err) {
+            console.error("Error disconnecting Mongoose:", err);
+        }
+        process.exit(0);
+    }
+
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
+    process.on("uncaughtException", (err) => {
+        console.error("Uncaught exception:", err);
+        shutdown();
+    });
+    process.on("unhandledRejection", (reason) => {
+        console.error("Unhandled rejection:", reason);
+        shutdown();
+    });
+};
+
 const start = async () => {
     try {
         const mongoURI = process.env.MONGO_URI;
@@ -51,9 +82,10 @@ const start = async () => {
             throw new Error("MONGO_URI is not defined");
         }
         await connectDB(mongoURI);
-        app.listen(port, () =>
+        const server = app.listen(port, () =>
             console.log(`Server is listening on port ${port}...`)
         );
+        handleShutdown(server);
     } catch (error) {
         console.log(error);
     }

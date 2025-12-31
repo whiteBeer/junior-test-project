@@ -37,9 +37,7 @@ const UserSchema = new mongoose.Schema<IUser>({
         type: String,
         enum: ["active", "inactive"]
     }
-}, {
-    versionKey: false
-});
+}, { versionKey: false });
 
 UserSchema.pre("save", async function () {
     const salt = await bcrypt.genSalt(10);
